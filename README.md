@@ -18,3 +18,7 @@ SharpBuster.exe -u http://google.com --wordlisturl http://example.com/wordlist.t
 Run with extensions appended to the wordlist:
 
 SharpBuster.exe -u http://google.com --wordlisturl http://example.com/wordlist.txt -e php,aspx
+
+Run with extensions and recurse through directories:
+
+SharpBuster.exe -u http://google.com --wordlisturl http://example.com/wordlist.txt -e php,aspx --recursion true
