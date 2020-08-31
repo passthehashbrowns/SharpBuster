@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "2+UWrXgoyXdcl+Mq+tZnI/TCyhDPFPUaJtZFrTiOvsC/dcR9g7c+za3L4lHEYNW7ZY9k910HboDpuTkKiSUFgA==",
+  "dgSpecHash": "DDlE+8HBC+/i17acDE8VnJkXhU9NiQz82V+yxybXq43UnUvhs+vtIitiIA75cRJg4oisFnXpDKr9gxPURDLerg==",
   "success": true,
   "projectFilePath": "C:\\Users\\pcuser\\source\\repos\\SharpBuster\\SharpBuster\\SharpBuster.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\pcuser\\.nuget\\packages\\costura.fody\\4.1.0\\costura.fody.4.1.0.nupkg.sha512",
     "C:\\Users\\pcuser\\.nuget\\packages\\microsoft.extensions.commandlineutils\\1.1.1\\microsoft.extensions.commandlineutils.1.1.1.nupkg.sha512",
     "C:\\Users\\pcuser\\.nuget\\packages\\microsoft.netcore.platforms\\1.1.0\\microsoft.netcore.platforms.1.1.0.nupkg.sha512",
     "C:\\Users\\pcuser\\.nuget\\packages\\microsoft.netcore.targets\\1.1.0\\microsoft.netcore.targets.1.1.0.nupkg.sha512",

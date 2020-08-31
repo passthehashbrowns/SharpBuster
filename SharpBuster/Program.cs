@@ -21,6 +21,8 @@ namespace SharpBuster
                 "-w", "The full path to the wordlist to use", CommandOptionType.SingleValue);
             CommandOption wordlistURL = commandLineApplication.Option(
                 "--wordlisturl", "URL of wordlist to use to avoid writing to disk", CommandOptionType.SingleValue);
+            CommandOption extensions = commandLineApplication.Option(
+                "-e | --ext", "A comma separated list of extensions to append, ex: php,asp,aspx", CommandOptionType.SingleValue);
             commandLineApplication.HelpOption("-h | --help");
             commandLineApplication.OnExecute(async () =>
             {
@@ -40,9 +42,23 @@ namespace SharpBuster
                     wordlistRead = GetWordlist(wordlistURL.Value());
                 }
                 string[] wordlistSeparated = wordlistRead.Split("\n");
-                for (int i = 0; i < wordlistSeparated.Length; i++)
+                if (extensions.HasValue())
                 {
-                    await GetDirectory(url.Value(), wordlistSeparated[i]);
+                    string[] csvExtensions = extensions.Value().Split(",");
+                    for (int i = 0; i < wordlistSeparated.Length; i++)
+                    {
+                        for (int j = 0; j < csvExtensions.Length; j++)
+                        {
+                            await GetDirectory(url.Value(), wordlistSeparated[i] + csvExtensions[j]);
+                        }
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < wordlistSeparated.Length; i++)
+                    {
+                        await GetDirectory(url.Value(), wordlistSeparated[i]);
+                    }
                 }
                 return 0;
             });
@@ -72,6 +88,7 @@ namespace SharpBuster
                 //Console.WriteLine("404");
             }
         }
+
 
         public static string GetWordlist(string url)
         {

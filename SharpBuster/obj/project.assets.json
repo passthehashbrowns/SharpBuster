@@ -2,6 +2,12 @@
   "version": 3,
   "targets": {
     ".NETCoreApp,Version=v3.1": {
+      "Costura.Fody/4.1.0": {
+        "type": "package",
+        "build": {
+          "build/Costura.Fody.props": {}
+        }
+      },
       "Microsoft.Extensions.CommandLineUtils/1.1.1": {
         "type": "package",
         "dependencies": {
@@ -1205,6 +1211,22 @@
     }
   },
   "libraries": {
+    "Costura.Fody/4.1.0": {
+      "sha512": "MkW5aqhqNvuP6MiaaD5Yx8efXv+5ucsumRx+Nsn5b+PA4RnaxJLtXhGkm1N+Hi7sjkSlL8kl1klSS/7v2DxZHw==",
+      "type": "package",
+      "path": "costura.fody/4.1.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "build/Costura.Fody.props",
+        "costura.fody.4.1.0.nupkg.sha512",
+        "costura.fody.nuspec",
+        "lib/net40/Costura.dll",
+        "lib/net40/Costura.xml",
+        "weaver/Costura.Fody.dll",
+        "weaver/Costura.Fody.xcf"
+      ]
+    },
     "Microsoft.Extensions.CommandLineUtils/1.1.1": {
       "sha512": "vsI1L6Bx602aQ/8051nrRbAWGxCQQX7IKT/9XApnEYfzLPBX7LcCZuwnDyD1bHTm2D8GcMweVSPr1H2rAfAgbA==",
       "type": "package",
@@ -4418,6 +4440,7 @@
   },
   "projectFileDependencyGroups": {
     ".NETCoreApp,Version=v3.1": [
+      "Costura.Fody >= 4.1.0",
       "Microsoft.Extensions.CommandLineUtils >= 1.1.1"
     ]
   },
@@ -4458,6 +4481,10 @@
     "frameworks": {
       "netcoreapp3.1": {
         "dependencies": {
+          "Costura.Fody": {
+            "target": "Package",
+            "version": "[4.1.0, )"
+          },
           "Microsoft.Extensions.CommandLineUtils": {
             "target": "Package",
             "version": "[1.1.1, )"

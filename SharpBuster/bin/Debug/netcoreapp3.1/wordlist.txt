@@ -1,3 +1,0 @@
-api
-index.html
-robots.txt

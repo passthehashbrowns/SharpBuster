@@ -8,12 +8,14 @@
     ".NETCoreApp,Version=v3.1": {
       "SharpBuster/1.0.0": {
         "dependencies": {
+          "Costura.Fody": "4.1.0",
           "Microsoft.Extensions.CommandLineUtils": "1.1.1"
         },
         "runtime": {
           "SharpBuster.dll": {}
         }
       },
+      "Costura.Fody/4.1.0": {},
       "Microsoft.Extensions.CommandLineUtils/1.1.1": {
         "dependencies": {
           "NETStandard.Library": "1.6.1"
@@ -698,6 +700,13 @@
       "type": "project",
       "serviceable": false,
       "sha512": ""
+    },
+    "Costura.Fody/4.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-MkW5aqhqNvuP6MiaaD5Yx8efXv+5ucsumRx+Nsn5b+PA4RnaxJLtXhGkm1N+Hi7sjkSlL8kl1klSS/7v2DxZHw==",
+      "path": "costura.fody/4.1.0",
+      "hashPath": "costura.fody.4.1.0.nupkg.sha512"
     },
     "Microsoft.Extensions.CommandLineUtils/1.1.1": {
       "type": "package",
