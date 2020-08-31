@@ -31,7 +31,15 @@ namespace SharpBuster
             commandLineApplication.HelpOption("-h | --help");
             commandLineApplication.OnExecute(async () =>
             {
-
+                Console.WriteLine(@" #####  #     #    #    ######  ######  ######  #     #  #####  ####### ####### ######  
+#     # #     #   # #   #     # #     # #     # #     # #     #    #    #       #     # 
+#       #     #  #   #  #     # #     # #     # #     # #          #    #       #     # 
+ #####  ####### #     # ######  ######  ######  #     #  #####     #    #####   ######  
+      # #     # ####### #   #   #       #     # #     #       #    #    #       #   #   
+#     # #     # #     # #    #  #       #     # #     # #     #    #    #       #    #  
+ #####  #     # #     # #     # #       ######   #####   #####     #    ####### #     # 
+Author: @passthehashbrwn
+");
                 string wordlistRead = "";
                 if(wordlist.HasValue() && wordlistURL.HasValue())
                 {
@@ -56,6 +64,10 @@ namespace SharpBuster
                 {
                     
                     await RunExt(url.Value(), wordlistSeparated, extensions.Value().Split(","));
+                }
+                else if(extensions.HasValue() && recursive.HasValue())
+                {
+                    await RunRecursive(url.Value(), wordlistSeparated, extensions.Value().Split(","));
                 }
                 else
                 {
@@ -115,6 +127,7 @@ namespace SharpBuster
         {
             for (int i = 0; i < wordlist.Length; i++)
             {
+                await GetDirectory(url, wordlist[i]);
                 for(int j = 0; j < ext.Length; j++)
                 {
                     await GetDirectory(url, wordlist[i] + "." + ext[j]);
@@ -124,14 +137,29 @@ namespace SharpBuster
 
         public static async Task RunRecursive(string url, string[] wordlist, string[] extensions)
         {
-            string[] recursiveList = new string[] { };
+            List<string> recursiveList = new List<string>();
             HttpClientHandler clientHandler = new HttpClientHandler();
             clientHandler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => { return true; };
-
             HttpClient client = new HttpClient(clientHandler);
             for (int i = 0; i < wordlist.Length; i++)
             {
-                for(int j = 0; j < extensions.Length; j++)
+                try 
+                {
+                    var request = WebRequest.Create(url + "/" + wordlist[i]);
+                    var response = (HttpWebResponse)await Task.Factory
+                        .FromAsync<WebResponse>(request.BeginGetResponse,
+                                                request.EndGetResponse,
+                                                null);
+                    Console.Write(wordlist[i] + ":");
+                    Console.WriteLine(response.StatusCode);
+                    recursiveList.Add(wordlist[i]);
+                    Console.WriteLine("[+] Adding directory to queue...");
+                }
+                catch
+                {
+
+                }
+                for (int j = 0; j < extensions.Length; j++)
                 {
                     try
                     {
@@ -140,25 +168,56 @@ namespace SharpBuster
                             .FromAsync<WebResponse>(request.BeginGetResponse,
                                                     request.EndGetResponse,
                                                     null);
-                        Console.Write(wordlist[i] + ":");
+                        Console.Write(wordlist[i] + "." + extensions[j] + ":");
                         Console.WriteLine(response.StatusCode);
-                        recursiveList.Append(wordlist[i] + "." + extensions[j]);
+                        
                     }
                     catch (System.Net.WebException ex)
                     {
                         //Console.WriteLine("404");
                     }
                 }
-                
             }
-
+            Console.WriteLine("Recursive queue:");
+            
+            for(int i = 0; i < recursiveList.Count; i++)
+            {
+                Console.WriteLine(recursiveList[i]);
+            }
+            recursiveList.RemoveAt(0);
             while(recursiveList.Any())
             {
-                for(int i = 0; i < recursiveList.Length; i++)
+                for(int i = 0; i < recursiveList.Count; i++)
                 {
                     for(int j = 0; j < wordlist.Length; j++)
                     {
-                        for(int k = 0; k < extensions.Length; k++)
+                        try
+                        {
+                            string recurseURL = "";
+                            if (recursiveList[i].StartsWith("/"))
+                            {
+                                recurseURL = url + recursiveList[i] + wordlist[j];
+                            }
+                            else
+                            {
+                                recurseURL = url + "/" + recursiveList[i] + wordlist[j];
+                            }
+                            var request = WebRequest.Create(recurseURL);
+                            var response = (HttpWebResponse)await Task.Factory
+                                .FromAsync<WebResponse>(request.BeginGetResponse,
+                                                        request.EndGetResponse,
+                                                        null);
+                            Console.Write(recursiveList[i] + "/" + wordlist[j] + ":");
+                            Console.WriteLine(response.StatusCode);
+                            recursiveList.Add(recursiveList[i] + "/" + wordlist[j]);
+                            Console.WriteLine("Added {0} to queue...", recursiveList[i] + wordlist[j]);
+
+                        }
+                        catch (System.Net.WebException ex)
+                        {
+                            //Console.WriteLine("404");
+                        }
+                        for (int k = 0; k < extensions.Length; k++)
                         {
                             try
                             {
@@ -169,8 +228,6 @@ namespace SharpBuster
                                                             null);
                                 Console.Write(recursiveList[i] + "/" + wordlist[j] + ":");
                                 Console.WriteLine(response.StatusCode);
-                                recursiveList.Append(wordlist[j]);
-                                Console.WriteLine("Added {0} to queue...", recursiveList[i] + "/" + wordlist[j] + "." + extensions[k]);
 
                             }
                             catch (System.Net.WebException ex)
