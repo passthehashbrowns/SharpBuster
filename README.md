@@ -1,5 +1,5 @@
 # SharpBuster
-This is a C# implementation of a directory brute forcing tool.
+This is a C# implementation of a directory brute forcing tool hacked together with a 6 pack as a proof of concept. Reliability and ease of use updates to come in the next week.
 
 ## Why another directory brute forcing tool?
 I couldn't find one written in C# for use with tools such as Cobalt Strike's execute-assembly, where it's not feasible to perform directory fuzzing over a SOCKS proxy.
@@ -19,6 +19,6 @@ Run with extensions appended to the wordlist:
 
 SharpBuster.exe -u http://google.com --wordlisturl http://example.com/wordlist.txt -e php,aspx
 
-Run with extensions and recurse through directories:
+Run with extensions and recurse through directories: (Note: recursion is in the works)
 
 SharpBuster.exe -u http://google.com --wordlisturl http://example.com/wordlist.txt -e php,aspx --recursion true
