@@ -24,6 +24,7 @@ Run with extensions and recurse through directories: (Note: recursion is in the 
 SharpBuster.exe -u http://google.com --wordlisturl http://example.com/wordlist.txt -e php,aspx --recursion true
 
 ## Help
+```shell
 Options:
   -u | --url        The URL to brute force
   -w | --wordlist   The full path to the wordlist to use
@@ -36,3 +37,4 @@ Options:
   --proxy-creds     Credentials to use to authenticate to proxy, ex: username:password
   --cookie          Cookie to use, ex: myCookie=value | If multiple cookies are being used, separate them with a comma
   -h | --help       Show help information
+```
