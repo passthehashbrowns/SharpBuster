@@ -14,3 +14,7 @@ SharpBuster.exe -u http://google.com -w C:\Windows\Users\Public\wordlist.txt
 Downloading a wordlist from a remote host:
 
 SharpBuster.exe -u http://google.com --wordlisturl http://example.com/wordlist.txt
+
+Run with extensions appended to the wordlist:
+
+SharpBuster.exe -u http://google.com --wordlisturl http://example.com/wordlist.txt -e php,aspx
