@@ -1,5 +1,5 @@
 # SharpBuster
-This is C# implementation of a directory brute forcing tool.
+This is a C# implementation of a directory brute forcing tool.
 
 ## Why another directory brute forcing tool?
 I couldn't find one written in C# for use with tools such as Cobalt Strike's execute-assembly, where it's not feasible to perform directory fuzzing over a SOCKS proxy.
