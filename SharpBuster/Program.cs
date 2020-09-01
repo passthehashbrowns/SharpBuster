@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -28,6 +29,7 @@ namespace SharpBuster
             public static string url { get; set; }
             public static int threadCount { get; set; }
             public static string[] extensions { get; set; }
+            public static TimeSpan timeout { get; set; }
         }
         
         static async Task Main(string[] args)
@@ -60,7 +62,9 @@ namespace SharpBuster
             CommandOption cookie = commandLineApplication.Option(
                 "--cookie", "Cookie to use, ex: myCookie=value | If multiple cookies are being used, separate them with a comma", CommandOptionType.SingleValue);
             CommandOption threadCount = commandLineApplication.Option(
-                "--threads", "Number of threads to use", CommandOptionType.SingleValue);
+                "--threads", "Number of threads to use. Default: 2", CommandOptionType.SingleValue);
+            CommandOption timeout = commandLineApplication.Option(
+                "--timeout", "Amount of seconds to wait before timing out. Default: 10 seconds", CommandOptionType.SingleValue);
             commandLineApplication.HelpOption("-h | --help");
             commandLineApplication.OnExecute(async () =>
             {
@@ -140,6 +144,7 @@ Author: @passthehashbrwn
                 GlobalHttpHandler.clientHandler.CookieContainer = myCookie;
             }
             GlobalHttpHandler.clientHandler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => { return true; };
+            GlobalHttpHandler.clientHandler.AllowAutoRedirect = false;
 
             ExecutionOptions.url = url.Value();
             ExecutionOptions.wordlist = wordlistRead.Split("\n");
@@ -154,6 +159,14 @@ Author: @passthehashbrwn
             if(extensions.HasValue())
                 {
                     ExecutionOptions.extensions = extensions.Value().Split(",");
+                }
+            if(timeout.HasValue())
+                {
+                    ExecutionOptions.timeout = TimeSpan.FromSeconds(Int32.Parse(timeout.Value()));
+                }
+                else
+                {
+                    ExecutionOptions.timeout = TimeSpan.FromSeconds(10);
                 }
             //if (extensions.HasValue() && !recursive.HasValue())
             //{
@@ -189,20 +202,28 @@ Author: @passthehashbrwn
             //clientHandler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => { return true; };
 
             HttpClient client = new HttpClient(GlobalHttpHandler.clientHandler);
+            client.Timeout = ExecutionOptions.timeout;
             try
             {
-                var request = WebRequest.Create(ExecutionOptions.url + "/" + directory);
-                var response = (HttpWebResponse)await Task.Factory
-                    .FromAsync<WebResponse>(request.BeginGetResponse,
-                                            request.EndGetResponse,
-                                            null);
-                Console.Write(directory + ":");
-                HandleStatusCode(response);
-
+                
+                var request = (HttpWebRequest)WebRequest.Create(ExecutionOptions.url + "/" + directory);
+                //request.AllowAutoRedirect = false;
+                var response = await client.GetAsync(ExecutionOptions.url + "/" + directory);
+                if(response.StatusCode.ToString() != "NotFound")
+                {
+                    Console.Write(directory + ":");
+                    HandleStatusCode(response);
+                }
+                    
+                
+                
+                //HandleStatusCode(response);
+                
+                
             }
             catch (WebException ex)
             {
-                
+                //Console.WriteLine(ex);
             }
         }
 
@@ -219,7 +240,7 @@ Author: @passthehashbrwn
             return wordlist;
         }
 
-        public static void HandleStatusCode(HttpWebResponse response)
+        public static void HandleStatusCode(HttpResponseMessage response)
         {
             var status = response.StatusCode;
             switch(status)
@@ -233,12 +254,13 @@ Author: @passthehashbrwn
                 case HttpStatusCode.InternalServerError:
                     Console.WriteLine("500");
                     break;
-                case HttpStatusCode.MovedPermanently:
-                    Console.WriteLine("301");
+                case HttpStatusCode.Moved:
+                    Console.Write("301 => ");
+                    Console.WriteLine(response.Headers.GetValues("Location").ElementAt(0));
                     break;
                 case HttpStatusCode.Redirect:
                     Console.Write("302 => ");
-                    Console.WriteLine(response.Headers.Get("Location"));
+                    Console.WriteLine(response.Headers.GetValues("Location").ElementAt(0));
                     break;
                 case HttpStatusCode.Unauthorized:
                     Console.WriteLine("401");
@@ -248,7 +270,7 @@ Author: @passthehashbrwn
                     break;
                 case HttpStatusCode.RedirectKeepVerb:
                     Console.Write("307 => ");
-                    Console.WriteLine(response.Headers.Get("Location"));
+                    Console.WriteLine(response.Headers.GetValues("Location").ElementAt(0));
                     break;
                 default:
                     Console.WriteLine(status.ToString());
@@ -309,13 +331,6 @@ Author: @passthehashbrwn
 
         public static async Task RunExt(string[] wordlist)
         {
-            //for (int i = 0; i < wordlist.Length; i++)
-            //{
-            //await GetDirectory(wordlist[i]);
-            //for(int j = 0; j < ExecutionOptions.extensions.Length; j++)
-            //{
-            //    await GetDirectory(wordlist[i] + "." + ExecutionOptions.extensions[j]);
-            //}
             await ParallelAsync.ForeachAsync(wordlist, ExecutionOptions.threadCount, async directory =>
             {
                 for (int j = 0; j < ExecutionOptions.extensions.Length; j++)
@@ -324,24 +339,24 @@ Author: @passthehashbrwn
                 }
             });
         }
-            //}
-        //}
 
         public static async Task RunRecursive(string url, string[] wordlist, string[] extensions)
         {
             List<string> recursiveList = new List<string>();
-            //HttpClientHandler clientHandler = new HttpClientHandler();
-            //clientHandler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => { return true; };
             HttpClient client = new HttpClient(GlobalHttpHandler.clientHandler);
+            client.Timeout = ExecutionOptions.timeout;
             for (int i = 0; i < wordlist.Length; i++)
             {
                 try 
                 {
-                    var request = WebRequest.Create(url + "/" + wordlist[i]);
-                    var response = (HttpWebResponse)await Task.Factory
-                        .FromAsync<WebResponse>(request.BeginGetResponse,
-                                                request.EndGetResponse,
-                                                null);
+                    var request = (HttpWebRequest)WebRequest.Create(ExecutionOptions.url + "/" + wordlist[i]);
+                    //request.AllowAutoRedirect = false;
+                    var response = await client.GetAsync(ExecutionOptions.url + "/" + wordlist[i]);
+                    if (response.StatusCode.ToString() != "NotFound")
+                    {
+                        Console.Write(wordlist[i] + ":");
+                        HandleStatusCode(response);
+                    }
                     Console.Write(wordlist[i] + ":");
                     HandleStatusCode(response);
                     recursiveList.Add(wordlist[i]);
@@ -355,18 +370,20 @@ Author: @passthehashbrwn
                 {
                     try
                     {
-                        var request = WebRequest.Create(url + "/" + wordlist[i] + "." + extensions[j]);
-                        var response = (HttpWebResponse)await Task.Factory
-                            .FromAsync<WebResponse>(request.BeginGetResponse,
-                                                    request.EndGetResponse,
-                                                    null);
-                        Console.Write(wordlist[i] + "." + extensions[j] + ":");
-                        HandleStatusCode(response);
+                        var request = (HttpWebRequest)WebRequest.Create(ExecutionOptions.url + "/" + wordlist[i] + "." + extensions[j]);
+                        //request.AllowAutoRedirect = false;
+                        var response = await client.GetAsync(ExecutionOptions.url + "/" + wordlist[i] + "." + extensions[j]);
+                        if (response.StatusCode.ToString() != "NotFound")
+                        {
+                            Console.Write(wordlist[i] + "." + extensions[j] + ":");
+                            HandleStatusCode(response);
+                        }
+                        //HandleStatusCode(response);
 
                     }
                     catch (System.Net.WebException ex)
                     {
-                        //Console.WriteLine("404");
+                        
                     }
                 }
             }
@@ -394,13 +411,17 @@ Author: @passthehashbrwn
                             {
                                 recurseURL = url + "/" + recursiveList[i] + wordlist[j];
                             }
-                            var request = WebRequest.Create(recurseURL);
-                            var response = (HttpWebResponse)await Task.Factory
-                                .FromAsync<WebResponse>(request.BeginGetResponse,
-                                                        request.EndGetResponse,
-                                                        null);
+                            var request = (HttpWebRequest)WebRequest.Create(recurseURL);
+                            //request.AllowAutoRedirect = false;
+                            var response = await client.GetAsync(recurseURL);
+                            if (response.StatusCode.ToString() != "NotFound")
+                            {
+                                Console.Write(recurseURL + ":");
+                                HandleStatusCode(response);
+                            }
+
                             Console.Write(recursiveList[i] + "/" + wordlist[j] + ":");
-                            HandleStatusCode(response);
+                            //HandleStatusCode(response);
                             recursiveList.Add(recursiveList[i] + "/" + wordlist[j]);
                             Console.WriteLine("Added {0} to queue...", recursiveList[i] + wordlist[j]);
 
@@ -413,14 +434,14 @@ Author: @passthehashbrwn
                         {
                             try
                             {
-                                var request = WebRequest.Create(url + "/" + recursiveList[i] + "/" + wordlist[j] + "." + extensions[k]);
-                                var response = (HttpWebResponse)await Task.Factory
-                                    .FromAsync<WebResponse>(request.BeginGetResponse,
-                                                            request.EndGetResponse,
-                                                            null);
-                                Console.Write(recursiveList[i] + "/" + wordlist[j] + ":");
-                                HandleStatusCode(response);
-
+                                var request = (HttpWebRequest)WebRequest.Create(ExecutionOptions.url + "/" + recursiveList[i] + "/" + wordlist[j] + "." + extensions[k]);
+                                //request.AllowAutoRedirect = false;
+                                var response = await client.GetAsync(ExecutionOptions.url + "/" + recursiveList[i] + "/" + wordlist[j] + "." + extensions[k]);
+                                if (response.StatusCode.ToString() != "NotFound")
+                                {
+                                    Console.Write(recursiveList[i] + "/" + wordlist[j] + "." + extensions[k]);
+                                    HandleStatusCode(response);
+                                }
                             }
                             catch (System.Net.WebException ex)
                             {
