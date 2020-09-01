@@ -333,6 +333,7 @@ Author: @passthehashbrwn
         {
             await ParallelAsync.ForeachAsync(wordlist, ExecutionOptions.threadCount, async directory =>
             {
+                await GetDirectory(directory);
                 for (int j = 0; j < ExecutionOptions.extensions.Length; j++)
                 {
                     await GetDirectory(directory + "." + ExecutionOptions.extensions[j]);
