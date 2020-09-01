@@ -8,6 +8,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SharpBuster
@@ -20,17 +21,30 @@ namespace SharpBuster
             public static HttpClientHandler clientHandler = new HttpClientHandler();
 
         }
+
+        public static class ExecutionOptions
+        {
+            public static string[] wordlist { get; set; }
+            public static string url { get; set; }
+            public static int threadCount { get; set; }
+            public static string[] extensions { get; set; }
+        }
         
         static async Task Main(string[] args)
         {
             CommandLineApplication commandLineApplication = new CommandLineApplication(throwOnUnexpectedArg: false);
+            commandLineApplication.Name = "SharpBuster";
+            commandLineApplication.Description = "A C# directory brute forcing tool";
             CommandArgument names = null;
+            
             CommandOption url = commandLineApplication.Option(
-                "-u", "The URL to brute force", CommandOptionType.SingleValue);
+                "-u | --url", "The URL to brute force", CommandOptionType.SingleValue);
             CommandOption wordlist = commandLineApplication.Option(
-                "-w", "The full path to the wordlist to use", CommandOptionType.SingleValue);
+                "-w | --wordlist", "The full path to the wordlist to use", CommandOptionType.SingleValue);
             CommandOption wordlistURL = commandLineApplication.Option(
-                "--wordlisturl", "URL of wordlist to use to avoid writing to disk", CommandOptionType.SingleValue);
+                "-wu | --wordlisturl", "URL of wordlist to use to avoid writing to disk", CommandOptionType.SingleValue);
+            CommandOption useHardcodedWordlist = commandLineApplication.Option(
+                "-bi | --builtin", "Use this to hardcode a wordlist. You can do this by setting the hardcodedWordlist variable in the source code with a comma separated string. Can be used to avoid writing to disk or requesting a remote file.", CommandOptionType.SingleValue);
             CommandOption extensions = commandLineApplication.Option(
                 "-e | --ext", "A comma separated list of extensions to append, ex: php,asp,aspx", CommandOptionType.SingleValue);
             CommandOption recursive = commandLineApplication.Option(
@@ -45,6 +59,8 @@ namespace SharpBuster
                 "--proxy-creds", "Credentials to use to authenticate to proxy, ex: username:password", CommandOptionType.SingleValue);
             CommandOption cookie = commandLineApplication.Option(
                 "--cookie", "Cookie to use, ex: myCookie=value | If multiple cookies are being used, separate them with a comma", CommandOptionType.SingleValue);
+            CommandOption threadCount = commandLineApplication.Option(
+                "--threads", "Number of threads to use", CommandOptionType.SingleValue);
             commandLineApplication.HelpOption("-h | --help");
             commandLineApplication.OnExecute(async () =>
             {
@@ -57,8 +73,13 @@ namespace SharpBuster
  #####  #     # #     # #     # #       ######   #####   #####     #    ####### #     # 
 Author: @passthehashbrwn
 ");
-
+            
             string wordlistRead = "";
+            if(!url.HasValue())
+                {
+                    Console.WriteLine("Must have a target URL");
+                    return 0;
+                }
             if (wordlist.HasValue() && wordlistURL.HasValue())
             {
                 Console.WriteLine("Can't use both wordlist and wordlisturl.");
@@ -67,11 +88,24 @@ Author: @passthehashbrwn
             if (wordlist.HasValue())
             {
                 wordlistRead = File.ReadAllText(wordlist.Value());
+                Console.Write("Target URL: {0} | Wordlist: {1} ", url.Value(), wordlist.Value());
             }
             else if (wordlistURL.HasValue())
             {
                 wordlistRead = GetWordlist(wordlistURL.Value());
+                Console.Write("Target URL: {0} | Wordlist: {1} ", url.Value(), wordlistURL.Value());
             }
+            else if (useHardcodedWordlist.HasValue())
+                {
+                    string hardcodedWordlist = "";
+                    wordlistRead = hardcodedWordlist;
+                    Console.Write("Target URL: {0} | Wordlist: Using builtin wordlist ", url.Value());
+                }
+            else
+                {
+                    Console.WriteLine("Must provide a wordlist");
+                    return 0;
+                }
             if ((username.HasValue() && !password.HasValue()) || (!username.HasValue() && password.HasValue()))
             {
                 Console.WriteLine("Must provide both username and password");
@@ -79,6 +113,7 @@ Author: @passthehashbrwn
             if (username.HasValue() && password.HasValue())
             {
                 GlobalHttpHandler.clientHandler.Credentials = new NetworkCredential(username.Value(), password.Value());
+                Console.Write("| Username: {0} | Password {1} ", username.Value(), password.Value());
             }
             if (proxy.HasValue())
             {
@@ -90,6 +125,7 @@ Author: @passthehashbrwn
                     myProxy.Credentials = new NetworkCredential(proxyCredentials.Value().Split(":")[0], proxyCredentials.Value().Split(":")[1]);
                 }
                 GlobalHttpHandler.clientHandler.Proxy = myProxy;
+                Console.Write("| Proxy: {0} ", proxy);
             }
             if(cookie.HasValue())
             {
@@ -105,32 +141,48 @@ Author: @passthehashbrwn
             }
             GlobalHttpHandler.clientHandler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => { return true; };
 
-            string[] wordlistSeparated = wordlistRead.Split("\n");
-
+            ExecutionOptions.url = url.Value();
+            ExecutionOptions.wordlist = wordlistRead.Split("\n");
+            if(threadCount.HasValue())
+                {
+                    ExecutionOptions.threadCount = Int32.Parse(threadCount.Value());
+                }
+                else
+                {
+                    ExecutionOptions.threadCount = 2;
+                }
+            if(extensions.HasValue())
+                {
+                    ExecutionOptions.extensions = extensions.Value().Split(",");
+                }
             //if (extensions.HasValue() && !recursive.HasValue())
             //{
-                //   await RunExt(url.Value(), wordlistSeparated, extensions.Value().Split(","));
+                //   await RunExt(url.Value(), ExecutionOptions.wordlist, extensions.Value().Split(","));
             //}
             if(extensions.HasValue() && !recursive.HasValue())
             {
-                    
-                await RunExt(url.Value(), wordlistSeparated, extensions.Value().Split(","));
+                Console.Write("| Total iterations: {0}", (ExecutionOptions.wordlist.Length * ExecutionOptions.extensions.Length).ToString());
+                await RunExt(ExecutionOptions.wordlist);
+                
             }
             else if(extensions.HasValue() && recursive.HasValue())
             {
-                await RunRecursive(url.Value(), wordlistSeparated, extensions.Value().Split(","));
+                await RunRecursive(url.Value(), ExecutionOptions.wordlist, ExecutionOptions.extensions);
             }
             else
             {
-                await RunNormal(url.Value(), wordlistSeparated);
+                Console.Write("| Total iterations {0}", ExecutionOptions.wordlist.Length.ToString());
+                await RunNormal(ExecutionOptions.wordlist);
+                
             }
+                Console.WriteLine(" ");
             return 0;
             });
             commandLineApplication.Execute(args);
             
         }
 
-        public static async Task GetDirectory(string url, string directory)
+        public static async Task GetDirectory(string directory)
         {
             
             //HttpClientHandler clientHandler = new HttpClientHandler();
@@ -139,7 +191,7 @@ Author: @passthehashbrwn
             HttpClient client = new HttpClient(GlobalHttpHandler.clientHandler);
             try
             {
-                var request = WebRequest.Create(url + "/" + directory);
+                var request = WebRequest.Create(ExecutionOptions.url + "/" + directory);
                 var response = (HttpWebResponse)await Task.Factory
                     .FromAsync<WebResponse>(request.BeginGetResponse,
                                             request.EndGetResponse,
@@ -204,25 +256,76 @@ Author: @passthehashbrwn
             }
         }
 
-        public static async Task RunNormal(string url, string[] wordlist)
+        public static async Task RunNormal(string[] wordlist)
         {
-            for (int i = 0; i < wordlist.Length; i++)
+            //for (int i = 0; i < wordlist.Length; i++)
+            //{
+            //    await GetDirectory(url, wordlist[i]);
+            //}
+            await ParallelAsync.ForeachAsync(wordlist, ExecutionOptions.threadCount, async directory =>
             {
-                await GetDirectory(url, wordlist[i]);
-            }
+                await GetDirectory(directory);
+            });
         }
-
-        public static async Task RunExt(string url, string[] wordlist, string[] ext)
+        //https://stackoverflow.com/questions/19284202/how-to-correctly-write-parallel-for-with-async-methods
+        public static class ParallelAsync
         {
-            for (int i = 0; i < wordlist.Length; i++)
+            public static async Task ForeachAsync<T>(IEnumerable<T> source, int maxParallelCount, Func<T, Task> action)
             {
-                await GetDirectory(url, wordlist[i]);
-                for(int j = 0; j < ext.Length; j++)
+                using (SemaphoreSlim completeSemphoreSlim = new SemaphoreSlim(1))
+                using (SemaphoreSlim taskCountLimitsemaphoreSlim = new SemaphoreSlim(maxParallelCount))
                 {
-                    await GetDirectory(url, wordlist[i] + "." + ext[j]);
+                    await completeSemphoreSlim.WaitAsync();
+                    int runningtaskCount = source.Count();
+
+                    foreach (var item in source)
+                    {
+                        await taskCountLimitsemaphoreSlim.WaitAsync();
+
+                        Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await action(item).ContinueWith(task =>
+                                {
+                                    Interlocked.Decrement(ref runningtaskCount);
+                                    if (runningtaskCount == 0)
+                                    {
+                                        completeSemphoreSlim.Release();
+                                    }
+                                });
+                            }
+                            finally
+                            {
+                                taskCountLimitsemaphoreSlim.Release();
+                            }
+                        }).GetHashCode();
+                    }
+
+                    await completeSemphoreSlim.WaitAsync();
                 }
             }
         }
+
+        public static async Task RunExt(string[] wordlist)
+        {
+            //for (int i = 0; i < wordlist.Length; i++)
+            //{
+            //await GetDirectory(wordlist[i]);
+            //for(int j = 0; j < ExecutionOptions.extensions.Length; j++)
+            //{
+            //    await GetDirectory(wordlist[i] + "." + ExecutionOptions.extensions[j]);
+            //}
+            await ParallelAsync.ForeachAsync(wordlist, ExecutionOptions.threadCount, async directory =>
+            {
+                for (int j = 0; j < ExecutionOptions.extensions.Length; j++)
+                {
+                    await GetDirectory(directory + "." + ExecutionOptions.extensions[j]);
+                }
+            });
+        }
+            //}
+        //}
 
         public static async Task RunRecursive(string url, string[] wordlist, string[] extensions)
         {
