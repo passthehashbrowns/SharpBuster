@@ -22,3 +22,19 @@ SharpBuster.exe -u http://google.com --wordlisturl http://example.com/wordlist.t
 Run with extensions and recurse through directories: (Note: recursion is in the works)
 
 SharpBuster.exe -u http://google.com --wordlisturl http://example.com/wordlist.txt -e php,aspx --recursion true
+
+## Help
+```shell
+Options:
+  -u | --url        The URL to brute force
+  -w | --wordlist   The full path to the wordlist to use
+  --wordlisturl     URL of wordlist to use to avoid writing to disk
+  -e | --ext        A comma separated list of extensions to append, ex: php,asp,aspx
+  -r | --recursive  Perform a recurisve search
+  --username        Username for basic authentication
+  --password        Password for authentication
+  --proxy           Address of proxy to use, ex: http://127.0.0.1:8080
+  --proxy-creds     Credentials to use to authenticate to proxy, ex: username:password
+  --cookie          Cookie to use, ex: myCookie=value | If multiple cookies are being used, separate them with a comma
+  -h | --help       Show help information
+```
