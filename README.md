@@ -26,15 +26,18 @@ SharpBuster.exe -u http://google.com --wordlisturl http://example.com/wordlist.t
 ## Help
 ```shell
 Options:
-  -u | --url        The URL to brute force
-  -w | --wordlist   The full path to the wordlist to use
-  --wordlisturl     URL of wordlist to use to avoid writing to disk
-  -e | --ext        A comma separated list of extensions to append, ex: php,asp,aspx
-  -r | --recursive  Perform a recurisve search
-  --username        Username for basic authentication
-  --password        Password for authentication
-  --proxy           Address of proxy to use, ex: http://127.0.0.1:8080
-  --proxy-creds     Credentials to use to authenticate to proxy, ex: username:password
-  --cookie          Cookie to use, ex: myCookie=value | If multiple cookies are being used, separate them with a comma
-  -h | --help       Show help information
+  -u | --url           The URL to brute force
+  -w | --wordlist      The full path to the wordlist to use
+  -wu | --wordlisturl  URL of wordlist to use to avoid writing to disk
+  -bi | --builtin      Use this to hardcode a wordlist. You can do this by setting the hardcodedWordlist variable in the source code with a comma separated string. Can be used to avoid writing to disk or requesting a remote file.
+  -e | --ext           A comma separated list of extensions to append, ex: php,asp,aspx
+  -r | --recursive     Perform a recurisve search
+  --username           Username for basic authentication
+  --password           Password for authentication
+  --proxy              Address of proxy to use, ex: http://127.0.0.1:8080
+  --proxy-creds        Credentials to use to authenticate to proxy, ex: username:password
+  --cookie             Cookie to use, ex: myCookie=value | If multiple cookies are being used, separate them with a comma
+  --threads            Number of threads to use. Default: 2
+  --timeout            Amount of seconds to wait before timing out. Default: 10 seconds
+  -h | --help          Show help information
 ```
