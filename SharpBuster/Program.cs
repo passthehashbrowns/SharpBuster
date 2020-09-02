@@ -16,7 +16,7 @@ namespace SharpBuster
         public static class GlobalHttpHandler
         {
             public static HttpClientHandler clientHandler = new HttpClientHandler();
-
+            public static HttpClient client = new HttpClient(GlobalHttpHandler.clientHandler);
         }
 
         public static class ExecutionOptions
@@ -26,6 +26,9 @@ namespace SharpBuster
             public static int threadCount { get; set; }
             public static string[] extensions { get; set; }
             public static TimeSpan timeout { get; set; }
+            public static string userAgent { get; set; }
+            public static List<HttpStatusCode> filterCodes { get; set; }
+            public static List<HttpStatusCode> allowCodes { get; set; }
         }
         
         static async Task Main(string[] args)
@@ -33,7 +36,6 @@ namespace SharpBuster
             CommandLineApplication commandLineApplication = new CommandLineApplication(throwOnUnexpectedArg: false);
             commandLineApplication.Name = "SharpBuster";
             commandLineApplication.Description = "A C# directory brute forcing tool";
-            CommandArgument names = null;
             
             CommandOption url = commandLineApplication.Option(
                 "-u | --url", "The URL to brute force", CommandOptionType.SingleValue);
@@ -42,11 +44,11 @@ namespace SharpBuster
             CommandOption wordlistURL = commandLineApplication.Option(
                 "-wu | --wordlisturl", "URL of wordlist to use to avoid writing to disk", CommandOptionType.SingleValue);
             CommandOption useHardcodedWordlist = commandLineApplication.Option(
-                "-bi | --builtin", "Use this to hardcode a wordlist. You can do this by setting the hardcodedWordlist variable in the source code with a comma separated string. Can be used to avoid writing to disk or requesting a remote file.", CommandOptionType.SingleValue);
+                "-bi | --builtin", "Uses the wordlist hardcoded into the source. Blank by default. Can be used to avoid writing to disk or requesting a remote file.", CommandOptionType.NoValue);
             CommandOption extensions = commandLineApplication.Option(
                 "-e | --ext", "A comma separated list of extensions to append, ex: php,asp,aspx", CommandOptionType.SingleValue);
             CommandOption recursive = commandLineApplication.Option(
-                "-r | --recursive", "Perform a recurisve search", CommandOptionType.SingleValue);
+                "-r | --recursive", "Perform a recurisve search", CommandOptionType.NoValue);
             CommandOption username = commandLineApplication.Option(
                 "--username", "Username for basic authentication", CommandOptionType.SingleValue);
             CommandOption password = commandLineApplication.Option(
@@ -61,6 +63,14 @@ namespace SharpBuster
                 "--threads", "Number of threads to use. Default: 2", CommandOptionType.SingleValue);
             CommandOption timeout = commandLineApplication.Option(
                 "--timeout", "Amount of seconds to wait before timing out. Default: 10 seconds", CommandOptionType.SingleValue);
+            CommandOption insecure = commandLineApplication.Option(
+                "-k | --insecure", "Ignore SSL certificate checking", CommandOptionType.NoValue);
+            CommandOption userAgent = commandLineApplication.Option(
+                "--user-agent", "User agent to use. Default: SharpBuster", CommandOptionType.SingleValue);
+            CommandOption filterCodes = commandLineApplication.Option(
+                "-fc | --filter-codes", "Codes to exclude from the results. Separated by comma, ex: 403,404,301", CommandOptionType.SingleValue);
+            CommandOption allowCodes = commandLineApplication.Option(
+                "-ac | --allow-codes", "Only allow certain codes. Separated by comma, ex: 200,301,302", CommandOptionType.SingleValue);
             commandLineApplication.HelpOption("-h | --help");
             commandLineApplication.OnExecute(async () =>
             {
@@ -139,7 +149,18 @@ Author: @passthehashbrwn
                 }
                 GlobalHttpHandler.clientHandler.CookieContainer = myCookie;
             }
-            GlobalHttpHandler.clientHandler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => { return true; };
+            if(insecure.HasValue())
+                {
+                    GlobalHttpHandler.clientHandler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => { return true; };
+                }
+                if (userAgent.HasValue())
+                {
+                    GlobalHttpHandler.client.DefaultRequestHeaders.Add("User-Agent", userAgent.Value());
+                }
+                else
+                {
+                    GlobalHttpHandler.client.DefaultRequestHeaders.Add("User-Agent", "SharpBuster");
+                }
             GlobalHttpHandler.clientHandler.AllowAutoRedirect = false;
 
             ExecutionOptions.url = url.Value();
@@ -158,11 +179,28 @@ Author: @passthehashbrwn
                 }
             if(timeout.HasValue())
                 {
-                    ExecutionOptions.timeout = TimeSpan.FromSeconds(Int32.Parse(timeout.Value()));
+                    //ExecutionOptions.timeout = TimeSpan.FromSeconds(Int32.Parse(timeout.Value()));
+                    GlobalHttpHandler.client.Timeout = TimeSpan.FromSeconds(Int32.Parse(timeout.Value()));
                 }
                 else
                 {
-                    ExecutionOptions.timeout = TimeSpan.FromSeconds(10);
+                    //ExecutionOptions.timeout = TimeSpan.FromSeconds(10);
+                    GlobalHttpHandler.client.Timeout = TimeSpan.FromSeconds(10);
+                }
+            if(filterCodes.HasValue() && allowCodes.HasValue())
+                {
+                    Console.WriteLine("Cannot use filter-codes and allow-codes together");
+                    return 0;
+                }
+                if(filterCodes.HasValue())
+                {
+                    ExecutionOptions.filterCodes = convertCodes(filterCodes.Value().Split(","));
+                    ExecutionOptions.allowCodes = null;
+                }
+            if(allowCodes.HasValue())
+                {
+                    ExecutionOptions.allowCodes = convertCodes(allowCodes.Value().Split(","));
+                    ExecutionOptions.filterCodes = null;
                 }
             //if (extensions.HasValue() && !recursive.HasValue())
             //{
@@ -193,29 +231,12 @@ Author: @passthehashbrwn
 
         public static async Task GetDirectory(string directory)
         {
-            
-            //HttpClientHandler clientHandler = new HttpClientHandler();
-            //clientHandler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => { return true; };
-
-            HttpClient client = new HttpClient(GlobalHttpHandler.clientHandler);
-            client.Timeout = ExecutionOptions.timeout;
             try
             {
-                
                 var request = (HttpWebRequest)WebRequest.Create(ExecutionOptions.url + "/" + directory);
-                //request.AllowAutoRedirect = false;
-                var response = await client.GetAsync(ExecutionOptions.url + "/" + directory);
-                if(response.StatusCode.ToString() != "NotFound")
-                {
-                    Console.Write(directory + ":");
-                    HandleStatusCode(response);
-                }
-                    
-                
-                
-                //HandleStatusCode(response);
-                
-                
+                request.AllowAutoRedirect = false;
+                var response = await GlobalHttpHandler.client.GetAsync(ExecutionOptions.url + "/" + directory);
+                HandleStatusCode(response, directory);
             }
             catch (WebException ex)
             {
@@ -236,42 +257,99 @@ Author: @passthehashbrwn
             return wordlist;
         }
 
-        public static void HandleStatusCode(HttpResponseMessage response)
+        public static void HandleStatusCode(HttpResponseMessage response, string directory)
         {
+           
             var status = response.StatusCode;
-            switch(status)
+            if(ExecutionOptions.allowCodes != null && !ExecutionOptions.allowCodes.Contains(status))
+            {
+                return;
+            }
+            if (ExecutionOptions.filterCodes != null && ExecutionOptions.filterCodes.Contains(status))
+                {
+                return;
+            }
+
+
+
+            switch (status)
             {
                 case HttpStatusCode.OK:
+                    Console.Write(directory + ":");
                     Console.WriteLine("200");
                     break;
                 case HttpStatusCode.Forbidden:
+                    Console.Write(directory + ":");
                     Console.WriteLine("403");
                     break;
                 case HttpStatusCode.InternalServerError:
+                    Console.Write(directory + ":");
                     Console.WriteLine("500");
                     break;
                 case HttpStatusCode.Moved:
+                    Console.Write(directory + ":");
                     Console.Write("301 => ");
                     Console.WriteLine(response.Headers.GetValues("Location").ElementAt(0));
                     break;
                 case HttpStatusCode.Redirect:
+                    Console.Write(directory + ":");
                     Console.Write("302 => ");
                     Console.WriteLine(response.Headers.GetValues("Location").ElementAt(0));
                     break;
                 case HttpStatusCode.Unauthorized:
+                    Console.Write(directory + ":");
                     Console.WriteLine("401");
                     break;
                 case HttpStatusCode.NoContent:
+                    Console.Write(directory + ":");
                     Console.WriteLine("204");
                     break;
                 case HttpStatusCode.RedirectKeepVerb:
+                    Console.Write(directory + ":");
                     Console.Write("307 => ");
                     Console.WriteLine(response.Headers.GetValues("Location").ElementAt(0));
                     break;
-                default:
-                    Console.WriteLine(status.ToString());
-                    break;
+                //default:
+                //    Console.WriteLine(status.ToString());
+                //    break;
             }
+        }
+
+        public static List<HttpStatusCode> convertCodes(string[] codes)
+        {
+            List<HttpStatusCode> intCodes = new List<HttpStatusCode>();
+            for(int i = 0; i < codes.Length; i++)
+            {
+                switch(codes[i])
+                {
+                    case "200":
+                        intCodes.Add(HttpStatusCode.OK);
+                        break;
+                    case "403":
+                        intCodes.Add(HttpStatusCode.Forbidden);
+                        break;
+                    case "204":
+                        intCodes.Add(HttpStatusCode.NoContent);
+                        break;
+                    case "307":
+                        intCodes.Add(HttpStatusCode.RedirectKeepVerb);
+                        break;
+                    case "401":
+                        intCodes.Add(HttpStatusCode.Unauthorized);
+                        break;
+                    case "301":
+                        intCodes.Add(HttpStatusCode.Moved);
+                        break;
+                    case "302":
+                        intCodes.Add(HttpStatusCode.Redirect);
+                        break;
+                    case "500":
+                        intCodes.Add(HttpStatusCode.InternalServerError);
+                        break;
+                }
+
+            }
+            return intCodes;
         }
 
         public static async Task RunNormal(string[] wordlist)
@@ -340,24 +418,20 @@ Author: @passthehashbrwn
         public static async Task RunRecursive(string url, string[] wordlist, string[] extensions)
         {
             List<string> recursiveList = new List<string>();
-            HttpClient client = new HttpClient(GlobalHttpHandler.clientHandler);
-            client.Timeout = ExecutionOptions.timeout;
+            //HttpClient client = new HttpClient(GlobalHttpHandler.clientHandler);
+            //client.Timeout = ExecutionOptions.timeout;
             for (int i = 0; i < wordlist.Length; i++)
             {
                 try 
                 {
-                    var request = (HttpWebRequest)WebRequest.Create(ExecutionOptions.url + "/" + wordlist[i]);
+                    //var request = (HttpWebRequest)WebRequest.Create(ExecutionOptions.url + "/" + wordlist[i]);
                     //request.AllowAutoRedirect = false;
-                    var response = await client.GetAsync(ExecutionOptions.url + "/" + wordlist[i]);
-                    if (response.StatusCode.ToString() != "NotFound")
-                    {
-                        Console.Write(wordlist[i] + ":");
-                        HandleStatusCode(response);
-                    }
-                    Console.Write(wordlist[i] + ":");
-                    HandleStatusCode(response);
+                    var response = await GlobalHttpHandler.client.GetAsync(ExecutionOptions.url + "/" + wordlist[i]);
+                    
+                    
+                    HandleStatusCode(response, wordlist[i]);
                     recursiveList.Add(wordlist[i]);
-                    Console.WriteLine("[+] Adding directory to queue...");
+                    //Console.WriteLine("[+] Adding directory to queue...");
                 }
                 catch
                 {
@@ -367,13 +441,13 @@ Author: @passthehashbrwn
                 {
                     try
                     {
-                        var request = (HttpWebRequest)WebRequest.Create(ExecutionOptions.url + "/" + wordlist[i] + "." + extensions[j]);
+                        //var request = (HttpWebRequest)WebRequest.Create(ExecutionOptions.url + "/" + wordlist[i] + "." + extensions[j]);
                         //request.AllowAutoRedirect = false;
-                        var response = await client.GetAsync(ExecutionOptions.url + "/" + wordlist[i] + "." + extensions[j]);
+                        var response = await GlobalHttpHandler.client.GetAsync(ExecutionOptions.url + "/" + wordlist[i] + "." + extensions[j]);
                         if (response.StatusCode.ToString() != "NotFound")
                         {
-                            Console.Write(wordlist[i] + "." + extensions[j] + ":");
-                            HandleStatusCode(response);
+                            //Console.Write(wordlist[i] + "." + extensions[j] + ":");
+                            HandleStatusCode(response, wordlist[i] + "." + extensions[j]);
                         }
                         //HandleStatusCode(response);
 
@@ -408,13 +482,13 @@ Author: @passthehashbrwn
                             {
                                 recurseURL = url + "/" + recursiveList[i] + wordlist[j];
                             }
-                            var request = (HttpWebRequest)WebRequest.Create(recurseURL);
+                            //var request = (HttpWebRequest)WebRequest.Create(recurseURL);
                             //request.AllowAutoRedirect = false;
-                            var response = await client.GetAsync(recurseURL);
+                            var response = await GlobalHttpHandler.client.GetAsync(recurseURL);
                             if (response.StatusCode.ToString() != "NotFound")
                             {
-                                Console.Write(recurseURL + ":");
-                                HandleStatusCode(response);
+                                //Console.Write(recurseURL + ":");
+                                HandleStatusCode(response, recurseURL);
                             }
 
                             Console.Write(recursiveList[i] + "/" + wordlist[j] + ":");
@@ -431,14 +505,13 @@ Author: @passthehashbrwn
                         {
                             try
                             {
-                                var request = (HttpWebRequest)WebRequest.Create(ExecutionOptions.url + "/" + recursiveList[i] + "/" + wordlist[j] + "." + extensions[k]);
+                                //var request = (HttpWebRequest)WebRequest.Create(ExecutionOptions.url + "/" + recursiveList[i] + "/" + wordlist[j] + "." + extensions[k]);
                                 //request.AllowAutoRedirect = false;
-                                var response = await client.GetAsync(ExecutionOptions.url + "/" + recursiveList[i] + "/" + wordlist[j] + "." + extensions[k]);
-                                if (response.StatusCode.ToString() != "NotFound")
-                                {
-                                    Console.Write(recursiveList[i] + "/" + wordlist[j] + "." + extensions[k]);
-                                    HandleStatusCode(response);
-                                }
+                                var response = await GlobalHttpHandler.client.GetAsync(ExecutionOptions.url + "/" + recursiveList[i] + "/" + wordlist[j] + "." + extensions[k]);
+                               
+                                    //Console.Write(recursiveList[i] + "/" + wordlist[j] + "." + extensions[k]);
+                                    HandleStatusCode(response, recursiveList[i] + "/" + wordlist[j] + "." + extensions[k]);
+                                
                             }
                             catch (System.Net.WebException ex)
                             {

@@ -5,7 +5,6 @@ C:\Users\pcuser\source\repos\SharpBuster\SharpBuster\bin\Release\netcoreapp3.1\S
 C:\Users\pcuser\source\repos\SharpBuster\SharpBuster\bin\Release\netcoreapp3.1\SharpBuster.dll
 C:\Users\pcuser\source\repos\SharpBuster\SharpBuster\bin\Release\netcoreapp3.1\SharpBuster.pdb
 C:\Users\pcuser\source\repos\SharpBuster\SharpBuster\bin\Release\netcoreapp3.1\Microsoft.Extensions.CommandLineUtils.dll
-C:\Users\pcuser\source\repos\SharpBuster\SharpBuster\obj\Release\netcoreapp3.1\SharpBuster.csprojAssemblyReference.cache
 C:\Users\pcuser\source\repos\SharpBuster\SharpBuster\obj\Release\netcoreapp3.1\SharpBuster.AssemblyInfoInputs.cache
 C:\Users\pcuser\source\repos\SharpBuster\SharpBuster\obj\Release\netcoreapp3.1\SharpBuster.AssemblyInfo.cs
 C:\Users\pcuser\source\repos\SharpBuster\SharpBuster\obj\Release\netcoreapp3.1\SharpBuster.csproj.CoreCompileInputs.cache
@@ -13,3 +12,4 @@ C:\Users\pcuser\source\repos\SharpBuster\SharpBuster\obj\Release\netcoreapp3.1\S
 C:\Users\pcuser\source\repos\SharpBuster\SharpBuster\obj\Release\netcoreapp3.1\SharpBuster.dll
 C:\Users\pcuser\source\repos\SharpBuster\SharpBuster\obj\Release\netcoreapp3.1\SharpBuster.pdb
 C:\Users\pcuser\source\repos\SharpBuster\SharpBuster\obj\Release\netcoreapp3.1\SharpBuster.genruntimeconfig.cache
+C:\Users\pcuser\source\repos\SharpBuster\SharpBuster\obj\Release\netcoreapp3.1\SharpBuster.csprojAssemblyReference.cache
